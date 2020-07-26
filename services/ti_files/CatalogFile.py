@@ -17,11 +17,12 @@ tipi_config = TipiConfig.instance()
 
 
 class CatalogFile(object):
-    def __init__(self, localpath, devname, long):
+    def __init__(self, localpath, devname, long, timestamps=False):
         self.recNum = 0
         self.localpath = localpath
         self.devname = devname
         self.longnames = long
+        self.timestamps = timestamps
         self.records = self.__loadRecords()
 
     @staticmethod
@@ -32,8 +33,9 @@ class CatalogFile(object):
                 # TODO: if they specify the longer filename record length, and recordType, then this will be different
                 #       for implementation of long file name handling
                 if recordLength(pab) == 0 or recordLength(pab) == 38:
-                    # TODO: load all the directory records upfront
                     return CatalogFile(path, devname, False)
+                if recordLength(pab) == 146:
+                    return CatalogFile(path, devname, False, True)
             if recordType(pab) == VARIABLE and recordLength(pab) == 0:
                 return CatalogFile(path, devname, True)
         raise Exception("bad record type")
@@ -118,13 +120,20 @@ class CatalogFile(object):
         logger.debug("__include %s", fp)
         return os.path.isdir(fp) or ti_files.isTiFile(fp) or os.path.isfile(fp)
 
+    def __getTimestamps(self, fp):
+        return [(0, 0, 0, 0, 0, 0), (0, 0, 0, 0, 0, 0)]
+
     def __createFileRecord(self, f):
         logger.debug("createFileRecord %s", f)
         fh = None
         try:
             fp = os.path.join(self.localpath, f)
+
+            # capture creation and modified timestamps
+            filedates = self.__getTimestamps(fp)
+
             if os.path.isdir(fp):
-                return self.__encodeDirRecord(f, 6, 2, 0)
+                return self.__encodeDirRecord(f, 6, 2, 0, filedates)
 
             if ti_files.isTiFile(fp):
                 fh = open(fp, "rb")
@@ -134,7 +143,7 @@ class CatalogFile(object):
                 ft = ti_files.catFileType(header)
                 sectors = ti_files.getSectors(header) + 1
                 recordlen = ti_files.recordLength(header)
-                return self.__encodeDirRecord(f, ft, sectors, recordlen)
+                return self.__encodeDirRecord(f, ft, sectors, recordlen, filedates)
             # else it is a native file
             elif fp.lower().endswith(NativeFile.dv80suffixes):
                 # dis/var
@@ -147,7 +156,7 @@ class CatalogFile(object):
                 stats = os.stat(fp)
                 recCount = stats.st_size / 128 + 1
                 recSize = 128
-            return self.__encodeDirRecord(f, ft, recCount, recSize)
+            return self.__encodeDirRecord(f, ft, recCount, recSize, filedates)
 
         except Exception as e:
             traceback.print_exc()
@@ -167,7 +176,7 @@ class CatalogFile(object):
 
         return self.__encodeCatRecord(buff, recname, ftype, sectors, recordLength)
 
-    def __encodeDirRecord(self, name, ftype, sectors, recordLength):
+    def __encodeDirRecord(self, name, ftype, sectors, recordLength, filedates=None):
         if self.longnames:
             recname = bytearray(name, 'utf-8')
             buff = bytearray(28 + len(recname))
@@ -175,12 +184,16 @@ class CatalogFile(object):
             recname = bytearray(tinames.asTiShortName(name), 'utf-8')
             buff = bytearray(38)
 
-        return self.__encodeCatRecord(buff, recname, ftype, sectors, recordLength)
+        return self.__encodeCatRecord(buff, recname, ftype, sectors, recordLength, filedates)
 
-    def __encodeCatRecord(self, buff, recname, ftype, sectors, recordLength):
+    def __encodeCatRecord(self, buff, recname, ftype, sectors, recordLength, filedates=None):
         logger.debug(
             "cat record: %s, %d, %d, %d", recname, ftype, sectors, recordLength
         )
+        buflen = 38
+        if self.timestamps:
+            buflen = 146
+            buff = bytearray(146)
 
         buff[0] = len(recname)
         i = 1
@@ -199,9 +212,14 @@ class CatalogFile(object):
         for b in rl:
             buff[i] = b
             i += 1
+        
+        if self.timestamps:
+            # todo: encode the timestamps for the record.
+            pass
+
         if not self.longnames:
             # pad the rest of the fixed record length
-            for i in range(i, 38):
+            for i in range(i, buflen):
                 buff[i] = 0
 
         return buff
