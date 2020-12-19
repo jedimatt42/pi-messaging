@@ -8,12 +8,13 @@ extern int main(void);
 extern "C"
 #endif
 
-#define GENEVE_MAPPER *(unsigned char*)(0x8002)
-#define OLD_PAGE *(unsigned char*)(0x2000)
+#include "geneve.h"
+
+unsigned char geneve_stash;
 
 void _start2(void)
 {
-  OLD_PAGE = GENEVE_MAPPER;
+  geneve_stash = GENEVE_MAPPER;
   GENEVE_MAPPER = 0xBA;
 
   /* Fill .data section with initial values */

@@ -4,15 +4,13 @@
 #include <string.h>
 #include <system.h>
 #include <conio.h>
+#include "geneve.h"
 
 #define VPAB 0x3000
 #define FBUF 0x3200
 
 #define GPLWS ((unsigned int*)0x83E0)
 #define DSRTS ((unsigned char*)0x401A)
-
-#define GENEVE_MAPPER *(unsigned char*)(0x8002)
-#define OLD_PAGE *(unsigned char*)(0x2000)
 
 #define TIPICFG_VER "BM"
 #define PI_CONFIG "PI.CONFIG"
@@ -334,7 +332,7 @@ void main()
 
   gotoxy(0,4);
   cputs("quiting...");
-  GENEVE_MAPPER = OLD_PAGE;
+  GENEVE_MAPPER = geneve_stash;
   __asm__("clr r0\n\tblwp *r0");
 }
 
