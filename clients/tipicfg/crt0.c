@@ -8,8 +8,14 @@ extern int main(void);
 extern "C"
 #endif
 
+#define GENEVE_MAPPER *(unsigned char*)(0x8002)
+#define OLD_PAGE *(unsigned char*)(0x2000)
+
 void _start2(void)
 {
+  OLD_PAGE = GENEVE_MAPPER;
+  GENEVE_MAPPER = 0xBA;
+
   /* Fill .data section with initial values */
   {
     extern int __VAL_START;
@@ -21,7 +27,7 @@ void _start2(void)
     {
       *dst++ = *src++;
     }
-  } 
+  }
 
   /* Erase .bss section */
   {
@@ -36,7 +42,7 @@ void _start2(void)
 
 #ifdef __cplusplus
   /* Call all initial constructors.
-  * The .ctors section is filled with function pointers to constructors. 
+  * The .ctors section is filled with function pointers to constructors.
   * Iterate through them and call each function. */
   {
     extern int __CTOR_START;

@@ -11,7 +11,10 @@
 #define GPLWS ((unsigned int*)0x83E0)
 #define DSRTS ((unsigned char*)0x401A)
 
-#define TIPICFG_VER "11"
+#define GENEVE_MAPPER *(unsigned char*)(0x8002)
+#define OLD_PAGE *(unsigned char*)(0x2000)
+
+#define TIPICFG_VER "BM"
 #define PI_CONFIG "PI.CONFIG"
 #define PI_STATUS "PI.STATUS"
 #define PI_UPGRADE "PI.UPGRADE"
@@ -331,6 +334,7 @@ void main()
 
   gotoxy(0,4);
   cputs("quiting...");
+  GENEVE_MAPPER = OLD_PAGE;
   __asm__("clr r0\n\tblwp *r0");
 }
 
